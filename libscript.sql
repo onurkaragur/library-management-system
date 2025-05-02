@@ -216,15 +216,9 @@ DELIMITER ;
 
 /*
 Adding metadata column
+Data was imported from Python
 */
 ALTER TABLE Books ADD COLUMN book_metadata JSON;
 
-SELECT * FROM Books;
-
-
-
-
-
-
-
-
+INSERT INTO Borrowing
+VALUES (1,1,1,'2025-05-01','2025-05-15','Not Returned');

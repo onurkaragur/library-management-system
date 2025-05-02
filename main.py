@@ -1,5 +1,7 @@
 import mysql.connector
 import json
+import xml.etree.ElementTree as ET
+from xml.dom import minidom
 
 #JSON records of books
 book_metadata = [
@@ -55,25 +57,9 @@ book_metadata = [
     (50, {"publisher": "Harper", "edition": "2nd", "summary": "A sweeping history of humankind from prehistory to now."})
 ]
 
-def insert_book_with_metadata(book_id, metadata, cursor):
-    try:
-        #Inserting values in book_metadata dictionary
-        cursor.execute(
-            """
-            INSERT INTO Books (Book_ID, book_metadata)
-            VALUES (%s, %s)
-            ON DUPLICATE KEY UPDATE book_metadata = VALUES(book_metadata)
-            """,
-            (book_id, json.dumps(metadata))
-        )
-        if cursor.rowcount == 0:
-            print(f"Warning: no book with Book_ID={book_id}")
+#Importing metadata 
+def insert_book_with_metadata(book_id, metadata):
 
-    except mysql.connector.Error as e:
-        print(f"Error updating Book_ID {book_id}: {e}")
-        
-def main():
-    
     #Connecting to database
     conn = mysql.connector.connect(
         host="localhost",
@@ -85,10 +71,25 @@ def main():
     #Create a cursor 
     cursor = conn.cursor()
 
-    #Loop through and insert each record
-    for book_id, metadata in book_metadata:
-        insert_book_with_metadata(book_id, metadata, cursor)
-    
+    try:
+        #Ensure book_id is an integer
+        book_id = int(book_id)
+        
+        #Convert dictionary to JSON string
+        metadata_json = json.dumps(metadata)
+        
+        #Update the book's metadata
+        cursor.execute(
+            "UPDATE Books SET book_metadata = %s WHERE Book_ID = %s",
+            (metadata_json, book_id)
+        )
+
+        #Debug output
+        print(f"Affected rows for Book_ID={book_id}: {cursor.rowcount}")
+
+    except mysql.connector.Error as e:
+        print(f"Error for Book_ID={book_id}: {e}")
+
     #Save changes
     conn.commit()
 
@@ -96,5 +97,53 @@ def main():
     cursor.close()
     conn.close()
 
+#Exporting XML
+def export_borrowing_to_xml():
+
+    #Connecting to database
+    conn = mysql.connector.connect(
+        host="localhost",
+        user="root",
+        password="root",
+        database="library_system"
+    )
+
+    #Create a cursor 
+    cursor = conn.cursor(dictionary=True)
+
+    #Fetch borrowing records
+    cursor.execute("SELECT * FROM Borrowing")
+    records = cursor.fetchall()
+
+    #Building XML structure
+    root = ET.Element("BorrowingRecords")
+
+    for record in records:
+        borrow_element = ET.SubElement(root, "Borrowing")
+        for key, value in record.items():
+            child = ET.SubElement(borrow_element, key)
+            child.text = str(value) if value is not None else ""
+
+    #Convert to string 
+    xml_str = ET.tostring(root, encoding="utf-8")
+    parsed = minidom.parseString(xml_str)
+    pretty_xml = parsed.toprettyxml(indent="    ")
+
+    #Writing to a file
+    with open("borrowing_records.xml", "w", encoding="utf-8") as f:
+        f.write(pretty_xml)
+
+    #Clean up
+    cursor.close()
+    conn.close()
+        
+def main():
+    
+    #Loop through and insert each record
+    for book_id, metadata in book_metadata:
+        insert_book_with_metadata(book_id, metadata)
+
+    export_borrowing_to_xml()
+    
 if __name__ == "__main__":
     main()
