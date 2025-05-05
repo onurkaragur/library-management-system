@@ -136,14 +136,77 @@ def export_borrowing_to_xml():
     #Clean up
     cursor.close()
     conn.close()
+
+#Verify user type
+def verify_user_type():
+
+    #Ask for user type until a valid answer
+    while True:
+        print("Type 1 -> Librarian.")
+        print("Type 2 -> Student.")
+        try:
+            user_type = int(input("Enter your type: ").strip())
+
+            if user_type in [1, 2]:
+                break
+            else:
+                print("Invalid input.")
         
+        except ValueError:
+            print("Invalid input. Please enter 1 or 2.")
+
+#Verify user id
+def verify_user_id(user_type):
+
+    #Connecting to database
+    conn = mysql.connector.connect(
+        host="localhost",
+        user="root",
+        password="root",
+        database="library_system"
+    )
+
+    #Create a cursor
+    cursor = conn.cursor()
+
+    #Confirming if a user_id exists for librarians or students
+    while True:
+        try:
+            user_id = int(input("Enter your id: ").strip())
+            
+            #To create a one element tuple (user_id,) is written with a comma.
+            if user_type == 1:
+                cursor.execute("SELECT * FROM Librarians WHERE Librarian_ID = %s", (user_id,))
+            else:
+                cursor.execute("SELECT * FROM Students WHERE Student_ID = %s", (user_id,))
+
+            if cursor.fetchone():
+                print("User ID verified.")
+                return user_id
+            else:
+                print("ID not found. Try again.")
+        
+        except ValueError:
+            print("Invalid ID. Please enter a number.")
+        
+            
+        except ValueError:
+            print("Invalid id.")
+
+
 def main():
     
     #Loop through and insert each record
+    """
     for book_id, metadata in book_metadata:
         insert_book_with_metadata(book_id, metadata)
+    """
 
-    export_borrowing_to_xml()
+    print("Welcome to the Library Management System!")
+
+    user_type = verify_user_type()
+    user_id = verify_user_id(user_type)
+
     
 if __name__ == "__main__":
     main()
